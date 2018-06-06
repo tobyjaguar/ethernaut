@@ -1,37 +1,48 @@
 pragma solidity ^0.4.18;
 
-contract GatekeeperTwo {
+interface GatekeeperTwo {
 
-  address public entrant;
-  uint64 public kValue;
-  uint64 public xValue;
-  uint64 public zValue;
+  function enter(bytes8 _gateKey) public returns (bool);
 
-  modifier gateOne() {
-    require(msg.sender != tx.origin);
-    _;
-  }
+}
 
-  modifier gateTwo() {
-    uint x;
-    assembly { x := extcodesize(caller) }
-    require(x == 0);
-    _;
-  }
+contract GateHelper2 {
+    uint public data;
+    address public owner;
+    GatekeeperTwo gatekeeper;
 
-  modifier gateThree(bytes8 _gateKey) {
-    require(uint64(keccak256(msg.sender)) ^ uint64(_gateKey) == uint64(0) - 1);
-    _;
-  }
+    constructor(address _contract) public {
+        owner = msg.sender;
+        gatekeeper = GatekeeperTwo(_contract);
+    }
 
-  function giveGak(bytes8 _gateKey) public {
-      kValue = uint64(keccak256(msg.sender));
-      xValue = uint64(keccak256(msg.sender)) ^ uint64(_gateKey);
-      zValue = uint64(0) - 1;
-  }
+    function callContract(bytes4 _method, bytes8 _key) public returns (bool) {
+        return gatekeeper.call(_method, _key);
+    }
 
-  function enter(bytes8 _gateKey) public gateOne gateTwo gateThree(_gateKey) returns (bool) {
-    entrant = tx.origin;
-    return true;
-  }
+    function callDelegate(bytes4 _method) public returns (bool) {
+        return gatekeeper.delegatecall(_method);
+    }
+
+    function giveConversions(bytes8 _key) public view returns (uint16, uint32, uint64, uint16) {
+        return (uint16(_key), uint32(_key), uint64(_key), uint16(tx.origin));
+    }
+
+    function giveOrigin() public view returns (address) {
+        return tx.origin;
+    }
+
+    function giveKeccak(string _input) public pure returns (bytes4) {
+        return bytes4(keccak256(_input));
+    }
+
+    function giveXORNumber(address _sender) public view returns (bytes8) {
+        return bytes8(uint64(keccak256(_sender)) ^ uint64(0) - 1);
+
+    }
+
+    function kill() public {
+        require(owner == msg.sender);
+        selfdestruct(owner);
+    }
 }
